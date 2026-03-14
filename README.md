@@ -1,45 +1,80 @@
 # 🗺️ Cartographie des Points Noirs — Réseau Ferroviaire Belge
 
-## Description
-Projet Data Science analysant la ponctualité du réseau ferroviaire belge
-à partir des données Open Data Infrabel pour identifier les gares et
-tronçons les plus problématiques.
+Analyse de **22+ millions d'enregistrements** de données Open Data Infrabel pour identifier les gares et tronçons du réseau belge les plus problématiques en termes de ponctualité.
 
-## Structure du projet
+## 🎯 Objectif
+
+Transformer des données brutes de ponctualité ferroviaire en **insights actionnables** pour prioriser les investissements infrastructure et améliorer la qualité de service.
+
+## 📊 Résultats
+
+- **12 mois** de données analysées (2025-01 → 2026-02)
+- **22,6M+** d'enregistrements traités
+- **Carte interactive** des points noirs avec heatmaps
+- **Top 15** des gares les plus problématiques
+- **Analyse temporelle** des tendances de retard
+
+## 🛠️ Stack technique
+
+| Outil | Usage |
+|-------|-------|
+| **Python** | Langage principal |
+| **Pandas** | Manipulation et nettoyage de données |
+| **Folium** | Cartographie interactive (HeatMap) |
+| **Plotly** | Graphiques interactifs |
+| **Streamlit** | Dashboard web |
+| **Requests** | API REST — téléchargement automatique |
+
+## 📁 Structure du projet
+
 ```
 blackspots/
-├── 01_download_data.py   # Étape 1 : Télécharger les données Infrabel
-├── 02_clean_data.py      # Étape 2 : Nettoyer et agréger les données
-├── 03_map.py             # Étape 3 : Générer la carte Folium interactive
+├── blackspots_infrabel.ipynb   # Notebook principal (analyse complète)
 ├── app/
-│   └── dashboard.py      # Étape 4 : Dashboard Streamlit complet
+│   └── dashboard.py            # Dashboard Streamlit
 ├── data/
-│   ├── raw/              # Données brutes téléchargées
-│   └── clean/            # Données nettoyées et agrégées
+│   ├── raw/                    # Données brutes (non commitées)
+│   └── clean/                  # Données nettoyées
 ├── requirements.txt
 └── README.md
 ```
 
-## Lancement (dans l'ordre)
+## 🚀 Lancement
+
 ```bash
-# Activer l'environnement virtuel
-source venv/bin/activate
+# Installer les dépendances
+pip install -r requirements.txt
 
-# Étape 1 : Télécharger les données
-python 01_download_data.py
+# Lancer le notebook
+jupyter notebook blackspots_infrabel.ipynb
 
-# Étape 2 : Nettoyer les données
-python 02_clean_data.py
-
-# Étape 3 : Générer la carte
-python 03_map.py
-
-# Étape 4 : Lancer le dashboard
+# Ou lancer le dashboard
 streamlit run app/dashboard.py
 ```
 
-## Source des données
-- [Open Data Infrabel — Ponctualité mensuelle](https://opendata.infrabel.be/explore/dataset/stiptheid-gegevens-maandelijksebestanden/)
+## 📖 Source des données
 
-## Stack technique
-- Python, Pandas, Folium, Plotly, Streamlit
+- [Open Data Infrabel — Ponctualité mensuelle](https://opendata.infrabel.be/explore/dataset/stiptheid-gegevens-maandelijksebestanden/)
+- API v2.1 — Téléchargement automatique des 12 derniers mois
+- Licence : CC0 (Open Data)
+
+## 🔍 Méthodologie
+
+1. **Téléchargement** — Récupération automatique via API Infrabel (22M+ lignes)
+2. **Exploration** — Analyse structure, types, valeurs manquantes
+3. **Nettoyage** — Conversion types, suppression doublons, normalisation
+4. **Agrégation** — Groupby gare avec calcul retard moyen
+5. **Géolocalisation** — Coordonnées GPS des principales gares
+6. **Visualisation** — Carte Folium + graphiques Plotly
+7. **Insights** — Conclusions et recommandations
+
+## 👤 Auteur
+
+**Tahar Guenfoud** — Data Analyst & Data Scientist
+- 🌐 [Portfolio](https://proftg.github.io/portfolio)
+- 💼 [LinkedIn](https://linkedin.com/in/tahar-guenfoud)
+- 📧 taharguenfoud@gmail.com
+
+---
+
+*Projet réalisé dans le cadre d'une candidature au ICT Traineeship d'Infrabel.*
