@@ -226,4 +226,86 @@ for col in ['relation', 'gare', 'line_no_dep']:
 
 ---
 
-*Dernière mise à jour : 2026-03-15*
+## 12. Pourquoi télécharger les données via l'API plutôt qu'utiliser des CSV statiques ?
+
+### Le choix
+```python
+INDEX_URL = 'https://opendata.infrabel.be/api/explore/v2.1/catalog/datasets/...'
+resp = requests.get(INDEX_URL, timeout=30)
+```
+
+### Raisonnement
+- L'API Infrabel fournit un index des 100 derniers mois
+- Téléchargement automatique des 12 derniers mois — reproductible et à jour
+- Un CSV statique devient obsolète ; l'API garantit les dernières données
+
+### 🎯 Réponse recruteur :
+> "J'ai utilisé l'API Open Data d'Infrabel pour rendre le notebook reproductible et automatiquement à jour. À chaque exécution, il récupère les 12 derniers mois. C'est une approche pipeline — pas un one-shot sur des données figées."
+
+---
+
+## 13. Pourquoi stocker les coordonnées GPS en dur plutôt que via une API ?
+
+### Le choix
+```python
+COORDS_GARES = {
+    'Bruxelles-Central': (50.8453, 4.3571),
+    'Gand-Saint-Pierre': (51.0355, 3.7103),
+    ...
+}
+```
+
+### Raisonnement
+- 25 gares principales suffisent pour couvrir 90% du trafic
+- API géocodage = dépendance externe + rate limits + latence
+- Coordonnées de gares = données statiques qui ne changent pas
+- Approche pragmatique : fonctionne hors ligne, zéro coût
+
+### 🎯 Réponse recruteur :
+> "J'ai codé en dur les coordonnées des 25 principales gares belges. Pour un projet portfolio, c'est plus fiable qu'une API externe — pas de rate limit, pas de dépendance réseau. En production, j'utiliserais une table de référence ou l'API iRail pour les coordonnées de toutes les gares."
+
+---
+
+## 14. Pourquoi la correspondance approximative pour les noms de gares ?
+
+### Le problème
+- Données Infrabel : `MECHELEN`, `GENT-SINT-PIETERS`, `LUIK-GUILLEMINS`
+- Coordonnées : `Mechelen`, `Gent-Sint-Pieters`, `Luik-Gillemins`
+- Variants FR/NL : `Anvers-Central` vs `Antwerpen-Centraal`
+
+### La solution
+```python
+def get_coords(gare_name):
+    # Correspondance exacte d'abord
+    if g in COORDS_GARES: return COORDS_GARES[g]
+    # Puis partielle (inclusion)
+    for key, coords in COORDS_GARES.items():
+        if g.lower() in key.lower() or key.lower() in g.lower():
+            return coords
+```
+
+### 🎯 Réponse recruteur :
+> "Les noms de gares en Belgique varient entre français et néerlandais. J'ai implémenté une correspondance en deux niveaux — exacte d'abord, puis partielle — pour maximiser le taux de match. C'est un problème classique de data matching dans les données multilingues belges."
+
+---
+
+## 15. Pourquoi le double axe sur le graphique de tendance ?
+
+### Le choix
+```python
+fig3 = make_subplots(specs=[[{'secondary_y': True}]])
+# Axe principal (gauche) : % en retard + retard moyen
+# Axe secondaire (droite) : nombre de passages
+```
+
+### Raisonnement
+- Le nombre de passages (~1.5M-1.8M) est 1000x plus grand que le % en retard (~8-13%)
+- Sans double axe, le % serait invisible (aplani en bas)
+- Le double axe permet de voir la corrélation : plus de passages = plus de retards ?
+
+### 🎯 Réponse recruteur :
+> "J'ai utilisé un double axe Y pour comparer des grandeurs d'ordres très différents — des pourcentages (8-13%) et des volumes (1.5M+). C'est la seule façon de visualiser la relation entre volume de trafic et ponctualité sur le même graphique. J'ai fait attention à étiqueter clairement les deux axes pour éviter la confusion."
+
+---
+
+*Dernière mise à jour : 2026-03-15 (session Blackspots complète)*
