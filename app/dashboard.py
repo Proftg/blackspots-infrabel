@@ -51,8 +51,12 @@ CHART_LAYOUT = dict(
     paper_bgcolor="#1a1a2e", plot_bgcolor="#1a1a2e",
     font={"color": "#e6f1ff", "family": "Inter"},
     xaxis=dict(gridcolor="#2a2a4a", zerolinecolor="#2a2a4a"),
-    yaxis=dict(gridcolor="#2a2a4a", zerolinecolor="#2a2a4a"),
 )
+
+def chart_layout_with_yaxis(**extra_yaxis):
+    """Return CHART_LAYOUT with merged yaxis options."""
+    yaxis = dict(gridcolor="#2a2a4a", zerolinecolor="#2a2a4a", **extra_yaxis)
+    return {**CHART_LAYOUT, "yaxis": yaxis}
 
 STATION_COORDS = {
     "BRUSSELS CENTRAL": (50.8453, 4.3571), "BRUSSEL CENTRAAL": (50.8453, 4.3571),
@@ -219,7 +223,7 @@ with tab2:
                      labels={"retard_moyen": "Retard moyen (min)", "gare_short": ""},
                      title=f"Top {nb_top} — Retard moyen arrivée")
         fig.update_traces(texttemplate="%{text:.1f}m", textposition="outside")
-        fig.update_layout(height=500, yaxis={"categoryorder": "total ascending"}, coloraxis_showscale=False, **CHART_LAYOUT)
+        fig.update_layout(height=500, coloraxis_showscale=False, **chart_layout_with_yaxis(categoryorder="total ascending"))
         st.plotly_chart(fig, use_container_width=True)
     with col_right:
         top2 = station_stats.sort_values("pct_en_retard", ascending=False).head(nb_top).copy()
@@ -229,7 +233,7 @@ with tab2:
                       labels={"pct_en_retard": "% trains en retard >5min", "gare_short": ""},
                       title=f"Top {nb_top} — % trains en retard")
         fig2.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
-        fig2.update_layout(height=500, yaxis={"categoryorder": "total ascending"}, coloraxis_showscale=False, **CHART_LAYOUT)
+        fig2.update_layout(height=500, coloraxis_showscale=False, **chart_layout_with_yaxis(categoryorder="total ascending"))
         st.plotly_chart(fig2, use_container_width=True)
 
 with tab3:
@@ -241,7 +245,7 @@ with tab3:
                        title="Evolution du retard moyen journalier",
                        labels={"retard_moyen": "Retard moyen (min)", "date": "Date"})
         fig3.update_traces(line_color="#e74c3c", line_width=2)
-        fig3.update_layout(height=350, **CHART_LAYOUT)
+        fig3.update_layout(height=350, **chart_layout_with_yaxis())
         st.plotly_chart(fig3, use_container_width=True)
         if "mois" in df.columns:
             df_mois = df.dropna(subset=["mois", "delay_arr"]).groupby("mois")["delay_arr"].mean().reset_index()
@@ -251,7 +255,7 @@ with tab3:
                           title="Retard moyen par mois",
                           labels={"mois": "Mois", "retard_moyen": "Retard moyen (min)"})
             fig4.update_traces(texttemplate="%{text:.1f}m", textposition="outside")
-            fig4.update_layout(height=350, coloraxis_showscale=False, **CHART_LAYOUT)
+            fig4.update_layout(height=350, coloraxis_showscale=False, **chart_layout_with_yaxis())
             st.plotly_chart(fig4, use_container_width=True)
     else:
         st.info("Colonne date non disponible.")
