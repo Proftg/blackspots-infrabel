@@ -201,7 +201,7 @@ with tab1:
         fig_map.update_layout(
             map_style="carto-darkmatter",
             margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=520,
-            coloraxis_colorbar=dict(title="Retard (min)", tickfont={"color": "#e6f1ff"}, titlefont={"color": "#e6f1ff"}),
+            coloraxis_colorbar=dict(title=dict(text="Retard (min)", font={"color": "#e6f1ff"}), tickfont={"color": "#e6f1ff"}),
         )
         st.plotly_chart(fig_map, use_container_width=True)
         st.caption(f"{len(df_map)} gares affichées | retard moyen >= {seuil_retard} min")
