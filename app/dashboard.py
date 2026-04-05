@@ -54,7 +54,6 @@ CHART_LAYOUT = dict(
 )
 
 def chart_layout_with_yaxis(**extra_yaxis):
-    """Return CHART_LAYOUT with merged yaxis options."""
     yaxis = dict(gridcolor="#2a2a4a", zerolinecolor="#2a2a4a", **extra_yaxis)
     return {**CHART_LAYOUT, "yaxis": yaxis}
 
@@ -85,31 +84,92 @@ STATION_COORDS = {
 
 SAMPLE_SIZE = 500_000
 
+TRAIN_SERV_LABELS = {
+    "SNCB/NMBS": "SNCB/NMBS",
+    "THI-FACT": "Thalys/Eurostar",
+    "EURSLEEPER": "EuroSleeper",
+}
 
-@st.cache_data(ttl=3600, show_spinner=False)
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "clean", "ponctualite_clean.csv")
+BASE_URL = "https://fr.ftp.opendatasoft.com/infrabel/PunctualityHistory/Data_raw_punctuality_{ym}.csv"
+MONTHS_TO_DOWNLOAD = 6  # derniers 6 mois pour Streamlit Cloud
+
+
+def _last_n_months(n):
+    """Génère les n derniers mois au format YYYYMM."""
+    from dateutil.relativedelta import relativedelta
+    today = datetime.now()
+    months = []
+    for i in range(1, n + 2):
+        d = today - relativedelta(months=i)
+        months.append(d.strftime("%Y%m"))
+    return months
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def download_data():
+    """Télécharge les derniers mois depuis Open Data Infrabel."""
+    import io, requests as req
+    KEEP = ["datdep", "ptcar_lg_nm_nl", "delay_arr", "delay_dep", "circ_typ", "train_serv"]
+
+    months = _last_n_months(MONTHS_TO_DOWNLOAD)
+    dfs = []
+    progress = st.progress(0, text="Téléchargement des données Infrabel...")
+    loaded = 0
+    for i, ym in enumerate(months):
+        url = BASE_URL.format(ym=ym)
+        try:
+            r = req.get(url, timeout=120)
+            if r.status_code != 200:
+                continue
+            df = pd.read_csv(io.BytesIO(r.content), sep=",")
+            df.columns = [c.lower() for c in df.columns]
+            df["mois"] = f"{ym[:4]}-{ym[4:]}"
+            df = df[[c for c in KEEP + ["mois"] if c in df.columns]]
+            df["delay_arr"] = pd.to_numeric(df.get("delay_arr"), errors="coerce")
+            df = df[df["delay_arr"].between(-1800, 10800)]
+            df["delay_arr"] = (df["delay_arr"] / 60).round(2)
+            df["delay_dep"] = (pd.to_numeric(df.get("delay_dep", 0), errors="coerce") / 60).round(2)
+            dfs.append(df)
+            loaded += 1
+            progress.progress(loaded / MONTHS_TO_DOWNLOAD,
+                               text=f"Chargé {loaded}/{MONTHS_TO_DOWNLOAD} mois...")
+            if loaded >= MONTHS_TO_DOWNLOAD:
+                break
+        except Exception:
+            continue
+    progress.empty()
+    return pd.concat(dfs, ignore_index=True) if dfs else None
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
 def load_data():
-    candidates = [
-        "data/clean/ponctualite_clean.csv",
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/clean/ponctualite_clean.csv"),
-    ]
-    for path in candidates:
+    # 1. Try local CSV first (dev mode)
+    for path in [DATA_PATH, os.path.join(os.getcwd(), "data", "clean", "ponctualite_clean.csv")]:
         if os.path.exists(path):
-            df = pd.read_csv(path, encoding="utf-8-sig", nrows=SAMPLE_SIZE,
-                             dtype={"mois": str})  # prevent mois from being parsed as datetime
+            df_full = pd.read_csv(path, encoding="utf-8-sig", dtype={"mois": str})
+            if len(df_full) > SAMPLE_SIZE:
+                df = df_full.groupby("mois", group_keys=False).apply(
+                    lambda g: g.sample(min(len(g), SAMPLE_SIZE // df_full["mois"].nunique()),
+                                       random_state=42)
+                ).reset_index(drop=True)
+            else:
+                df = df_full
             if "datdep" in df.columns:
                 df["date"] = pd.to_datetime(df["datdep"], format="%d%b%Y", errors="coerce")
             df["delay_arr"] = pd.to_numeric(df.get("delay_arr", np.nan), errors="coerce")
             df["delay_dep"] = pd.to_numeric(df.get("delay_dep", np.nan), errors="coerce")
-            # Filter outliers: delays > 180 min are cancelled trains or data errors
-            df = df[df["delay_arr"].between(-30, 180)]
             return df
-    return None
+    # 2. Download from Infrabel Open Data (Streamlit Cloud)
+    return download_data()
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def compute_station_stats(df):
+def compute_station_stats(df_hash):
     stats = (
-        df.groupby("ptcar_lg_nm_nl")
+        df_hash.groupby("ptcar_lg_nm_nl")
         .agg(
             retard_moyen=("delay_arr", "mean"),
             retard_median=("delay_arr", "median"),
@@ -117,7 +177,7 @@ def compute_station_stats(df):
             nb_trains=("delay_arr", "count"),
             pct_en_retard=("delay_arr", lambda x: (x > 5).mean() * 100),
         )
-        .round(1).reset_index()
+        .round(2).reset_index()
         .rename(columns={"ptcar_lg_nm_nl": "gare"})
         .sort_values("retard_moyen", ascending=False)
     )
@@ -130,55 +190,87 @@ def compute_station_stats(df):
 
 
 # ---------------------------------------------------------------------------
-# Header
+# Load data
 # ---------------------------------------------------------------------------
+with st.spinner("Chargement des données..."):
+    df_raw = load_data()
+
+if df_raw is None:
+    st.error("Données introuvables.")
+    st.stop()
+
+# ---------------------------------------------------------------------------
+# Sidebar — Point 1 : Filtres
+# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown('<div style="color:#64ffda;font-weight:600;margin-bottom:16px;">Filtres</div>', unsafe_allow_html=True)
+
+    # Filter by train service
+    services_dispo = sorted(df_raw["train_serv"].dropna().unique()) if "train_serv" in df_raw.columns else []
+    service_sel = st.multiselect(
+        "Service",
+        options=services_dispo,
+        default=["SNCB/NMBS"] if "SNCB/NMBS" in services_dispo else services_dispo,
+    )
+
+    seuil_retard = st.slider("Retard minimum affiché (min)", 0, 30, 2)
+    nb_top = st.slider("Nombre de gares (Top)", 5, 50, 15)
+
+    st.divider()
+    mois_dispo = sorted(df_raw["mois"].dropna().unique()) if "mois" in df_raw.columns else []
+    st.caption(f"Période : {mois_dispo[0]} → {mois_dispo[-1]}" if mois_dispo else "")
+    st.caption(f"{len(df_raw):,} lignes chargées | Open Data Infrabel")
+
+# Apply filters
+df = df_raw.copy()
+if service_sel:
+    df = df[df["train_serv"].isin(service_sel)]
+
+# ---------------------------------------------------------------------------
+# Header — Point 5 : date + période
+# ---------------------------------------------------------------------------
+mois_range = f"{mois_dispo[0]} → {mois_dispo[-1]}" if mois_dispo else ""
 st.markdown(f"""
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
     <div>
         <h1 style="margin:0;color:#e6f1ff;font-size:1.8rem;">🗺️ Blackspots — Points Noirs Ferroviaires</h1>
         <p style="margin:4px 0 0 0;color:#8892b0;font-size:0.9rem;">
-            Cartographie des gares à retards chroniques | Open Data Infrabel | Réseau belge
+            Cartographie des gares à retards chroniques | Open Data Infrabel | {mois_range}
         </p>
     </div>
     <div style="text-align:right;">
-        <div style="color:#8892b0;font-size:0.75rem;">{datetime.now().strftime("%d/%m/%Y %H:%M")}</div>
+        <div style="color:#8892b0;font-size:0.75rem;">Mise à jour : {datetime.now().strftime("%d/%m/%Y %H:%M")}</div>
+        <div style="color:#64ffda;font-size:0.75rem;">{len(df_raw):,} passages analysés</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
-
-with st.sidebar:
-    st.markdown('<div style="color:#64ffda;font-weight:600;margin-bottom:16px;">Filtres</div>', unsafe_allow_html=True)
-    seuil_retard = st.slider("Retard minimum (min)", 0, 60, 5)
-    nb_top = st.slider("Nombre de gares", 5, 50, 15)
-    st.divider()
-    st.caption(f"Données : {SAMPLE_SIZE:,} lignes chargées")
-    st.caption("Source : Open Data Infrabel")
-
-with st.spinner("Chargement des données..."):
-    df = load_data()
-
-if df is None:
-    st.error("Données introuvables. Lance d'abord `python 01_download_data.py` puis `python 02_clean_data.py`")
-    st.stop()
 
 station_stats = compute_station_stats(df)
 df_filtered = station_stats[station_stats["retard_moyen"] >= seuil_retard]
 
 # ---------------------------------------------------------------------------
-# KPI Cards
+# KPI Cards — Point 2 : ajout "pire mois"
 # ---------------------------------------------------------------------------
 st.markdown('<div class="section-title">📊 Indicateurs Clés</div>', unsafe_allow_html=True)
 worst_station = station_stats.iloc[0]["gare"] if not station_stats.empty else "N/A"
 worst_delay = station_stats.iloc[0]["retard_moyen"] if not station_stats.empty else 0
 pct_en_retard = (df["delay_arr"] > 5).mean() * 100
 
-col1, col2, col3, col4, col5 = st.columns(5)
+# Point 2 : pire mois
+if "mois" in df.columns:
+    worst_month = df.groupby("mois")["delay_arr"].mean().idxmax()
+    worst_month_val = df.groupby("mois")["delay_arr"].mean().max()
+else:
+    worst_month, worst_month_val = "N/A", 0
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 for col, label, value, sub, cls in [
-    (col1, "Trains analysés",        f"{len(df):,}",                      f"{SAMPLE_SIZE/1_000_000:.1f}M dataset", "info"),
-    (col2, "Gares analysées",        f"{station_stats['gare'].nunique()}", "réseau belge",                         "info"),
-    (col3, "Retard moyen global",    f"{df['delay_arr'].mean():.1f} min",  "arrivée",                              "warning"),
-    (col4, "Trains en retard >5min", f"{pct_en_retard:.1f}%",             "du trafic",                            "danger"),
-    (col5, "Pire gare",              worst_station[:18],                   f"{worst_delay:.1f} min moy.",          "danger"),
+    (col1, "Trains analysés",        f"{len(df):,}",                         f"{len(df_raw)/1_000_000:.1f}M dataset",  "info"),
+    (col2, "Gares analysées",        f"{station_stats['gare'].nunique()}",    "réseau belge",                            "info"),
+    (col3, "Retard moyen global",    f"{df['delay_arr'].mean():.1f} min",     "arrivée",                                 "warning"),
+    (col4, "Trains en retard >5min", f"{pct_en_retard:.1f}%",                "du trafic",                               "danger"),
+    (col5, "Pire gare",              worst_station[:16],                      f"{worst_delay:.1f} min moy.",             "danger"),
+    (col6, "Pire mois",              worst_month,                             f"{worst_month_val:.1f} min moy.",         "warning"),
 ]:
     with col:
         st.markdown(
@@ -201,7 +293,7 @@ with tab1:
             color="retard_moyen", size="retard_moyen", size_max=30,
             color_continuous_scale="RdYlGn_r",
             hover_name="gare",
-            hover_data={"retard_moyen": ":.1f", "nb_trains": ":,", "pct_en_retard": ":.1f", "lat": False, "lon": False},
+            hover_data={"retard_moyen": ":.2f", "nb_trains": ":,", "pct_en_retard": ":.1f", "lat": False, "lon": False},
             labels={"retard_moyen": "Retard moy (min)", "nb_trains": "Nb trains", "pct_en_retard": "% en retard"},
             zoom=7, center={"lat": 50.65, "lon": 4.50},
         )
@@ -234,7 +326,7 @@ with tab2:
         fig2 = px.bar(top2, x="pct_en_retard", y="gare_short", orientation="h",
                       color="pct_en_retard", color_continuous_scale="RdYlGn_r", text="pct_en_retard",
                       labels={"pct_en_retard": "% trains en retard >5min", "gare_short": ""},
-                      title=f"Top {nb_top} — % trains en retard")
+                      title=f"Top {nb_top} — % trains en retard >5min")
         fig2.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
         fig2.update_layout(height=500, coloraxis_showscale=False, **chart_layout_with_yaxis(categoryorder="total ascending"))
         st.plotly_chart(fig2, use_container_width=True)
@@ -248,17 +340,31 @@ with tab3:
                        title="Evolution du retard moyen journalier",
                        labels={"retard_moyen": "Retard moyen (min)", "date": "Date"})
         fig3.update_traces(line_color="#e74c3c", line_width=2)
-        fig3.update_layout(height=350, **chart_layout_with_yaxis())
+        # Point 4 : ligne de référence à 5 min
+        fig3.add_hline(y=5, line_dash="dash", line_color="#64ffda",
+                       annotation_text="Seuil 5 min", annotation_position="top right",
+                       annotation_font_color="#64ffda")
+        fig3.update_layout(height=380, **chart_layout_with_yaxis())
         st.plotly_chart(fig3, use_container_width=True)
+
         if "mois" in df.columns:
             df_mois = df.dropna(subset=["mois", "delay_arr"]).groupby("mois")["delay_arr"].mean().reset_index()
             df_mois.columns = ["mois", "retard_moyen"]
-            fig4 = px.bar(df_mois.sort_values("mois"), x="mois", y="retard_moyen",
+            df_mois["mois"] = df_mois["mois"].astype(str)
+            df_mois = df_mois.sort_values("mois")
+            fig4 = px.bar(df_mois, x="mois", y="retard_moyen",
                           color="retard_moyen", color_continuous_scale="RdYlGn_r", text="retard_moyen",
                           title="Retard moyen par mois",
                           labels={"mois": "Mois", "retard_moyen": "Retard moyen (min)"})
             fig4.update_traces(texttemplate="%{text:.1f}m", textposition="outside")
-            fig4.update_layout(height=350, coloraxis_showscale=False, **chart_layout_with_yaxis())
+            # Point 4 : ligne de référence à 5 min sur le bar chart aussi
+            fig4.add_hline(y=5, line_dash="dash", line_color="#64ffda",
+                           annotation_text="Seuil 5 min", annotation_position="top right",
+                           annotation_font_color="#64ffda")
+            layout4 = {**chart_layout_with_yaxis(),
+                       "height": 430, "coloraxis_showscale": False,
+                       "xaxis": dict(type="category", tickangle=-45, gridcolor="#2a2a4a", zerolinecolor="#2a2a4a")}
+            fig4.update_layout(**layout4)
             st.plotly_chart(fig4, use_container_width=True)
     else:
         st.info("Colonne date non disponible.")
@@ -266,7 +372,7 @@ with tab3:
 with tab4:
     st.markdown('<div class="section-title">Données complètes par gare</div>', unsafe_allow_html=True)
     display = station_stats[["gare", "retard_moyen", "retard_median", "retard_max", "nb_trains", "pct_en_retard"]].copy()
-    display.columns = ["Gare", "Retard moy (min)", "Médian", "Max", "Nb trains", "% en retard"]
+    display.columns = ["Gare", "Retard moy (min)", "Médian", "Max", "Nb trains", "% en retard >5min"]
     st.dataframe(display, use_container_width=True, height=500)
     st.caption(f"{len(display)} gares | {len(df):,} trains analysés")
 

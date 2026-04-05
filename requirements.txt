@@ -1,6 +1,6 @@
 pandas
-folium
 plotly
 streamlit
 requests
-openpyxl
+numpy
+python-dateutil
