@@ -94,11 +94,14 @@ def load_data():
     ]
     for path in candidates:
         if os.path.exists(path):
-            df = pd.read_csv(path, encoding="utf-8-sig", nrows=SAMPLE_SIZE)
+            df = pd.read_csv(path, encoding="utf-8-sig", nrows=SAMPLE_SIZE,
+                             dtype={"mois": str})  # prevent mois from being parsed as datetime
             if "datdep" in df.columns:
                 df["date"] = pd.to_datetime(df["datdep"], format="%d%b%Y", errors="coerce")
             df["delay_arr"] = pd.to_numeric(df.get("delay_arr", np.nan), errors="coerce")
             df["delay_dep"] = pd.to_numeric(df.get("delay_dep", np.nan), errors="coerce")
+            # Filter outliers: delays > 180 min are cancelled trains or data errors
+            df = df[df["delay_arr"].between(-30, 180)]
             return df
     return None
 
