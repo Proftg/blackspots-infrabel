@@ -9,10 +9,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DATA_URL = "https://raw.githubusercontent.com/Proftg/blackspots-infrabel/main/data/sample.csv"
 
 st.set_page_config(
     page_title="Blackspots — Réseau Ferroviaire Belge",
@@ -58,112 +55,74 @@ def chart_layout_with_yaxis(**extra_yaxis):
     return {**CHART_LAYOUT, "yaxis": yaxis}
 
 STATION_COORDS = {
-    "BRUSSELS CENTRAL": (50.8453, 4.3571), "BRUSSEL CENTRAAL": (50.8453, 4.3571),
-    "BRUSSELS MIDI": (50.8355, 4.3364), "BRUXELLES MIDI": (50.8355, 4.3364),
-    "BRUSSELS NORTH": (50.8597, 4.3609), "BRUXELLES NORD": (50.8597, 4.3609),
-    "BRUSSELS AIRPORT - ZAVENTEM": (50.8979, 4.4844),
-    "GENT SINT PIETERS": (51.0359, 3.7107), "GHENT SINT PIETERS": (51.0359, 3.7107),
-    "ANTWERP CENTRAL": (51.2172, 4.4211), "ANTWERPEN CENTRAAL": (51.2172, 4.4211),
-    "LIEGE GUILLEMINS": (50.6246, 5.5667), "LUIK GUILLEMINS": (50.6246, 5.5667),
-    "CHARLEROI CENTRAL": (50.4047, 4.4386), "CHARLEROI CENTRAAL": (50.4047, 4.4386),
-    "BRUGES": (51.1972, 3.2168), "BRUGGE": (51.1972, 3.2168),
-    "LEUVEN": (50.8823, 4.7159), "NAMUR": (50.4688, 4.8622), "NAMEN": (50.4688, 4.8622),
-    "MONS": (50.4539, 3.9425), "BERGEN": (50.4539, 3.9425),
-    "MECHELEN": (51.0176, 4.4828), "HASSELT": (50.9308, 5.3276),
-    "KORTRIJK": (50.8245, 3.2645), "OSTEND": (51.2282, 2.9258), "OOSTENDE": (51.2282, 2.9258),
-    "AALST": (50.9368, 4.0384), "SCHAERBEEK": (50.8671, 4.3836),
-    "VILVOORDE": (50.9295, 4.4285), "KORTENBERG": (50.8755, 4.5450),
-    "NOSSEGEM": (50.8852, 4.5027), "DENDERMONDE": (51.0261, 4.1005),
-    "SINT NIKLAAS": (51.1567, 4.1336), "SINT-NIKLAAS": (51.1567, 4.1336),
-    "TURNHOUT": (51.3227, 4.9478), "GENK": (50.9647, 5.5019),
-    "ROESELARE": (50.9442, 3.1227), "ARLON": (49.6838, 5.8147),
-    "OTTIGNIES": (50.6697, 4.5681), "WAVRE": (50.7175, 4.6033),
-    "WATERLOO": (50.7176, 4.3994), "GENT DAMPOORT": (51.0530, 3.7368),
-    "LIBRAMONT": (49.9203, 5.3775), "DENDERLEEUW": (50.8964, 4.0828),
+    # Brussels
+    "BRUSSEL-CENTRAAL": (50.8453, 4.3571),
+    "BRUSSEL-ZUID": (50.8355, 4.3364),
+    "BRUSSEL-NOORD": (50.8597, 4.3609),
+    "BRUSSEL-LUXEMBURG": (50.8412, 4.3647),
+    "BRUSSEL-KAPELLEKERK": (50.8463, 4.3508),
+    "BRUSSEL-CONGRES": (50.8521, 4.3601),
+    "SCHAARBEEK": (50.8671, 4.3836),
+    "ETTERBEEK": (50.8365, 4.3881),
+    # Antwerp
+    "ANTWERPEN-CENTRAAL": (51.2172, 4.4211),
+    "ANTWERPEN-BERCHEM": (51.1990, 4.4317),
+    "ANTWERPEN-DAM": (51.2280, 4.4055),
+    # Ghent
+    "GENT-SINT-PIETERS": (51.0359, 3.7107),
+    "GENT-DAMPOORT": (51.0530, 3.7368),
+    # Liège
+    "LIEGE-GUILLEMINS": (50.6246, 5.5667),
+    # Charleroi
+    "CHARLEROI-CENTRAL": (50.4047, 4.4386),
+    "CHARLEROI-CENTRAAL": (50.4047, 4.4386),
+    # Other major cities
+    "BRUGGE": (51.1972, 3.2168),
+    "LEUVEN": (50.8823, 4.7159),
+    "NAMEN": (50.4688, 4.8622),
+    "BERGEN": (50.4539, 3.9425),
+    "MECHELEN": (51.0176, 4.4828),
+    "MECHELEN-NEKKERSPOEL": (51.0120, 4.4750),
+    "HASSELT": (50.9308, 5.3276),
+    "KORTRIJK": (50.8245, 3.2645),
+    "OOSTENDE": (51.2282, 2.9258),
+    "AALST": (50.9368, 4.0384),
+    "VILVOORDE": (50.9295, 4.4285),
+    "KORTENBERG": (50.8755, 4.5450),
+    "NOSSEGEM": (50.8852, 4.5027),
+    "ZAVENTEM": (50.8979, 4.4844),
+    "DIEGEM": (50.8933, 4.4469),
+    "DENDERMONDE": (51.0261, 4.1005),
+    "SINT-NIKLAAS": (51.1567, 4.1336),
+    "TURNHOUT": (51.3227, 4.9478),
+    "GENK": (50.9647, 5.5019),
+    "ROESELARE": (50.9442, 3.1227),
+    "AARLEN": (49.6838, 5.8147),
+    "OTTIGNIES": (50.6697, 4.5681),
+    "WAVER": (50.7175, 4.6033),
+    "WATERLOO": (50.7176, 4.3994),
+    "LIBRAMONT": (49.9203, 5.3775),
+    "DENDERLEEUW": (50.8964, 4.0828),
+    "HALLE": (50.7340, 4.2337),
+    "EPPEGEM": (50.9636, 4.4667),
+    "HAREN-ZUID": (50.8822, 4.3905),
+    "ERPS-KWERPS": (50.8833, 4.5833),
+    "VELTEM": (50.8900, 4.6167),
+    "HERENT": (50.8983, 4.6833),
+    "WEERDE": (50.9667, 4.5167),
+    "MORTSEL": (51.1667, 4.4500),
+    "DUFFEL": (51.0833, 4.5167),
+    "SINT-KATELIJNE-WAVER": (51.0667, 4.5333),
 }
-
-SAMPLE_SIZE = 500_000
-
-TRAIN_SERV_LABELS = {
-    "SNCB/NMBS": "SNCB/NMBS",
-    "THI-FACT": "Thalys/Eurostar",
-    "EURSLEEPER": "EuroSleeper",
-}
-
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_PATH = os.path.join(PROJECT_ROOT, "data", "clean", "ponctualite_clean.csv")
-BASE_URL = "https://fr.ftp.opendatasoft.com/infrabel/PunctualityHistory/Data_raw_punctuality_{ym}.csv"
-MONTHS_TO_DOWNLOAD = 6  # derniers 6 mois pour Streamlit Cloud
-
-
-def _last_n_months(n):
-    """Génère les n derniers mois au format YYYYMM."""
-    from dateutil.relativedelta import relativedelta
-    today = datetime.now()
-    months = []
-    for i in range(1, n + 2):
-        d = today - relativedelta(months=i)
-        months.append(d.strftime("%Y%m"))
-    return months
-
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def download_data():
-    """Télécharge les derniers mois depuis Open Data Infrabel."""
-    import io, requests as req
-    KEEP = ["datdep", "ptcar_lg_nm_nl", "delay_arr", "delay_dep", "circ_typ", "train_serv"]
-
-    months = _last_n_months(MONTHS_TO_DOWNLOAD)
-    dfs = []
-    progress = st.progress(0, text="Téléchargement des données Infrabel...")
-    loaded = 0
-    for i, ym in enumerate(months):
-        url = BASE_URL.format(ym=ym)
-        try:
-            r = req.get(url, timeout=120)
-            if r.status_code != 200:
-                continue
-            df = pd.read_csv(io.BytesIO(r.content), sep=",")
-            df.columns = [c.lower() for c in df.columns]
-            df["mois"] = f"{ym[:4]}-{ym[4:]}"
-            df = df[[c for c in KEEP + ["mois"] if c in df.columns]]
-            df["delay_arr"] = pd.to_numeric(df.get("delay_arr"), errors="coerce")
-            df = df[df["delay_arr"].between(-1800, 10800)]
-            df["delay_arr"] = (df["delay_arr"] / 60).round(2)
-            df["delay_dep"] = (pd.to_numeric(df.get("delay_dep", 0), errors="coerce") / 60).round(2)
-            dfs.append(df)
-            loaded += 1
-            progress.progress(loaded / MONTHS_TO_DOWNLOAD,
-                               text=f"Chargé {loaded}/{MONTHS_TO_DOWNLOAD} mois...")
-            if loaded >= MONTHS_TO_DOWNLOAD:
-                break
-        except Exception:
-            continue
-    progress.empty()
-    return pd.concat(dfs, ignore_index=True) if dfs else None
-
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def load_data():
-    # 1. Try local CSV first (dev mode)
-    for path in [DATA_PATH, os.path.join(os.getcwd(), "data", "clean", "ponctualite_clean.csv")]:
-        if os.path.exists(path):
-            df_full = pd.read_csv(path, encoding="utf-8-sig", dtype={"mois": str})
-            if len(df_full) > SAMPLE_SIZE:
-                df = df_full.groupby("mois", group_keys=False).apply(
-                    lambda g: g.sample(min(len(g), SAMPLE_SIZE // df_full["mois"].nunique()),
-                                       random_state=42)
-                ).reset_index(drop=True)
-            else:
-                df = df_full
-            if "datdep" in df.columns:
-                df["date"] = pd.to_datetime(df["datdep"], format="%d%b%Y", errors="coerce")
-            df["delay_arr"] = pd.to_numeric(df.get("delay_arr", np.nan), errors="coerce")
-            df["delay_dep"] = pd.to_numeric(df.get("delay_dep", np.nan), errors="coerce")
-            return df
-    # 2. Download from Infrabel Open Data (Streamlit Cloud)
-    return download_data()
+    df = pd.read_csv(DATA_URL, dtype={"mois": str})
+    if "datdep" in df.columns:
+        df["date"] = pd.to_datetime(df["datdep"], format="%d%b%Y", errors="coerce")
+    df["delay_arr"] = pd.to_numeric(df["delay_arr"], errors="coerce")
+    df["delay_dep"] = pd.to_numeric(df["delay_dep"], errors="coerce")
+    return df
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -192,11 +151,11 @@ def compute_station_stats(df_hash):
 # ---------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------
-with st.spinner("Chargement des données..."):
+with st.spinner("Chargement des données Infrabel... (première visite : ~2 min)"):
     df_raw = load_data()
 
-if df_raw is None:
-    st.error("Données introuvables.")
+if df_raw is None or df_raw.empty:
+    st.error(f"Fichier introuvable : `{DATA_FILE}`")
     st.stop()
 
 # ---------------------------------------------------------------------------
