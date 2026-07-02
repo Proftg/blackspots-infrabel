@@ -128,5 +128,4 @@ L'analyse prédictive complète (DBSCAN · Isolation Forest · XGBoost · Stacki
 ## 👤 Auteur
 
 **Tahar Guenfoud**  
-Data Analyst | Master Data Science — UMONS 2025 | Le Wagon 2025  
-📧 taharguenfoud@gmail.com · 🔗 [github.com/Proftg](https://github.com/Proftg)
+
