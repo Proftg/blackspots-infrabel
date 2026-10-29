@@ -1,6 +1,6 @@
-# 📋 Carnet de Décisions — Projet Blackspots
+# Carnet de Décisions: Projet Blackspots
 
-**Projet :** Cartographie des Points Noirs — Réseau Ferroviaire Belge  
+**Projet :** Cartographie des Points Noirs: Réseau Ferroviaire Belge  
 **Auteur :** Tahar Guenfoud  
 **Objectif :** Préparer les réponses aux questions techniques d'un recruteur
 
@@ -15,7 +15,7 @@ Tu ne conserves que ce qui contribue directement à ton objectif analytique. Obj
 
 | Colonne supprimée | Justification |
 |-------------------|---------------|
-| `train_no` | Granularité trop fine — on travaille à l'échelle de la gare, pas du train individuel. Que ce soit le train 2623 ou 1847 en retard à Liège, ça ne change rien au blackspot. |
+| `train_no` | Granularité trop fine: on travaille à l'échelle de la gare, pas du train individuel. Que ce soit le train 2623 ou 1847 en retard à Liège, ça ne change rien au blackspot. |
 | `train_serv` | Toujours SNCB/NMBS → variance zéro. Une variable constante ne discrimine rien et ne peut pas être utilisée dans une analyse comparative. |
 | `op1_cod` / `thop1_cod` | 53% et 10% de manquants, codes cryptiques (=, D, P, >, V, C). Aucune documentation publique claire. Supprimer évite d'introduire du bruit. |
 | `real_date_arr`, `real_date_dep`, `planned_date_arr`, `planned_date_dep` | Redondant avec `datdep` dans 95% des cas. Colonnes redondantes = mémoire gaspillée sans valeur ajoutée. |
@@ -23,7 +23,7 @@ Tu ne conserves que ce qui contribue directement à ton objectif analytique. Obj
 | `line_no_arr` | 4.9% manquants, et `line_no_dep` existe déjà. Pour les blackspots, la ligne de départ est la référence. |
 | `relation_direction` | 5.4% manquants, et `relation` contient déjà l'info essentielle (IC 08, S62, etc.). `relation_direction` ajoute juste le sens du trajet en texte long. |
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "J'ai appliqué le principe de sélection de features en amont de l'analyse. Chaque colonne supprimée l'a été pour une raison précise : variance nulle, redondance, taux de manquants trop élevé, ou granularité incompatible avec le niveau d'analyse. Ça m'a permis de réduire l'empreinte mémoire de 87% et d'accélérer significativement les calculs sur 22 millions de lignes."
 
 ### Impact concret
@@ -53,7 +53,7 @@ df = df[(df['retard'] >= -30) & (df['retard'] <= 1800)]
 - Après filtrage : ~19,730,044 lignes (87% gardées)
 - Les 13% supprimés étaient des données invalides
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "J'ai identifié des outliers physiquement impossibles (-23h de retard) en utilisant des bornes métier raisonnables. Le seuil de 30 minutes pour les retards de départ est basé sur la réalité opérationnelle : au-delà, c'est souvent une annulation, pas un retard. J'ai choisi de filtrer plutôt que d'imputer pour ne pas introduire de biais dans le calcul des KPIs."
 
 ---
@@ -65,7 +65,7 @@ df = df[(df['retard'] >= -30) & (df['retard'] <= 1800)]
 - Pour un dashboard orienté business, les **minutes** sont plus lisibles
 - 120 secondes → "2 minutes" est immédiatement compréhensible
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "J'ai converti les secondes en minutes pour aligner le format sur le vocabulaire métier. Les KPIs de ponctualité d'Infrabel sont exprimés en minutes (ponctualité brute = trains avec moins de 6 minutes de retard). Toujours parler le languel du business dans ses visualisations."
 
 ---
@@ -83,7 +83,7 @@ df['gare'] = df['gare'].astype(str).str.strip().str.title()
 - `strip()` : supprime les espaces
 - `title()` : première lettre en majuscule → `Mechelen`, `Brussels Airport - Zaventem`
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "La normalisation des noms est essentielle avant toute aggrégation. Sans ça, 'MECHELEN' et 'mechelen' seraient comptés comme deux gares différentes, faussant les KPIs. C'est une étape classique de data cleaning que tout analyste doit faire avant un groupby."
 
 ---
@@ -95,7 +95,7 @@ df['gare'] = df['gare'].astype(str).str.strip().str.title()
 - Créer une nouvelle colonne (`delay_min`) pour l'analyse
 - En cas d'erreur, on peut toujours revenir aux données brutes
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "J'applique le principe d'immuabilité des données brutes : je ne modifie jamais la colonne source, je crée des colonnes dérivées. C'est une bonne pratique qui garantit la reproductibilité et permet de vérifier mes calculs à tout moment."
 
 ---
@@ -111,7 +111,7 @@ df['gare'] = df['gare'].astype(str).str.strip().str.title()
 - Ne sauvegarder que le **résultat agrégé** (par gare)
 - Les données brutes restent accessibles via l'API Infrabel
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "J'ai fait un choix pragmatique de stockage : sauvegarder le résultat agrégé (500 gares) plutôt que les données brutes (22M lignes). Pour un projet portfolio, le résultat est reproductible en relançant le notebook. En production, j'utiliserais une base de données ou Parquet pour le stockage intermédiaire."
 
 ---
@@ -127,7 +127,7 @@ df['gare'] = df['gare'].astype(str).str.strip().str.title()
 - Infrabel mesure la **ponctualité à l'arrivée** comme KPI principal
 - Un blackspot d'arrivée ≠ blackspot de départ
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "Pour un projet complet, j'analyserais les deux dimensions : les gares où les trains partent en retard (problème d'exploitation gare) et les gares où ils arrivent en retard (problème d'infrastructure ou de trafic). La distinction permet de diagnostiquer l'origine du problème."
 
 ---
@@ -145,7 +145,7 @@ if any(x in c for x in ['station', 'gare', 'halte', 'stop']):
 - L'auto-détection ne matche pas `ptcar_lg_nm_nl` avec "gare"
 - Assignation directe = 100% fiable vs guesswork fragile
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "L'auto-détection est utile quand on ne connaît pas le dataset. Ici, j'ai exploré les données, je connais la structure. L'assignation directe est plus fiable et plus lisible. Un bon analyste sait quand automatiser et quand être explicite."
 
 ---
@@ -162,7 +162,7 @@ if any(x in c for x in ['station', 'gare', 'halte', 'stop']):
 - Mais sans documentation publique, on ne peut pas interpréter
 - Mieux vaut supprimer que de spéculer
 
-### 🎯 Réponse recruteur :
+### Réponse recruteur :
 > "J'ai vérifié si les deux colonnes étaient redondantes en comparant les valeurs ligne par ligne. Résultat : 61% de différences, donc ce sont des concepts distincts. Sans documentation, j'ai préféré les supprimer plutôt que de risquer une mauvaise interprétation. En entreprise, je demanderais au métier la signification exacte."
 
 ---
@@ -170,11 +170,11 @@ if any(x in c for x in ['station', 'gare', 'halte', 'stop']):
 ## 10. Pourquoi ce projet impressionne un recruteur Infrabel ?
 
 ### Ce qui le différencie
-1. **Données réelles Infrabel** — pas un dataset Kaggle générique
-2. **API temps réel** — pas des CSV statiques
-3. **Volume** — 22M lignes, pas un toy dataset
-4. **Pertinence métier** — ponctualité = KPI #1 d'Infrabel
-5. **Pipeline complet** — ingestion → cleaning → analyse → visualisation
+1. **Données réelles Infrabel**: pas un dataset Kaggle générique
+2. **API temps réel**: pas des CSV statiques
+3. **Volume**: 22M lignes, pas un toy dataset
+4. **Pertinence métier**: ponctualité = KPI #1 d'Infrabel
+5. **Pipeline complet**: ingestion → cleaning → analyse → visualisation
 
 ### Vocabulaire à utiliser en entretien
 - "Ponctualité brute" (% trains < 6 min de retard)
@@ -182,7 +182,7 @@ if any(x in c for x in ['station', 'gare', 'halte', 'stop']):
 - "Points noirs" (gares/tronçons problématiques)
 - "Contrat de Performance" (accord État-Infrabel)
 
-### 🎯 Pitch 30 secondes
+### Pitch 30 secondes
 > "J'ai développé une cartographie des points noirs du réseau ferroviaire belge en analysant 22 millions de lignes de données de ponctualité Infrabel. J'ai identifié les gares avec le plus fort taux de retards en combinant nettoyage de données, aggrégation par gare et visualisation géospatiale. Ce projet m'a permis de comprendre les KPIs clés du secteur : la ponctualité brute et les minutes perdues, qui sont au cœur du Contrat de Performance d'Infrabel."
 
 ---
@@ -216,13 +216,13 @@ for col in ['relation', 'gare', 'line_no_dep']:
 
 | Situation | Type optimal |
 |-----------|-------------|
-| Cardinalité faible (< 1000 uniques) répétée | `category` ✅ |
+| Cardinalité faible (< 1000 uniques) répétée | `category` |
 | Cardinalité haute (texte libre, noms uniques) | `object` |
 | Dates | `datetime64` |
 | Nombres | `int`/`float` |
 
-### 🎯 Réponse recruteur :
-> "J'ai converti les colonnes à faible cardinalité en type `category` de Pandas. Au lieu de stocker 22 millions de copies de 'Mechelen', Pandas stocke le mot une seule fois et utilise un index entier pour les références. Ça m'a permis de passer de 5 GB à moins de 1 GB en mémoire — un gain de 80% qui rend toutes les opérations suivantes beaucoup plus rapides. C'est une optimisation classique quand on travaille avec des données catégorielles à grande échelle."
+### Réponse recruteur :
+> "J'ai converti les colonnes à faible cardinalité en type `category` de Pandas. Au lieu de stocker 22 millions de copies de 'Mechelen', Pandas stocke le mot une seule fois et utilise un index entier pour les références. Ça m'a permis de passer de 5 GB à moins de 1 GB en mémoire: un gain de 80% qui rend toutes les opérations suivantes beaucoup plus rapides. C'est une optimisation classique quand on travaille avec des données catégorielles à grande échelle."
 
 ---
 

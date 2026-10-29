@@ -1,7 +1,6 @@
-# =============================================================================
-# app/dashboard.py — Blackspots — Points Noirs Réseau Ferroviaire Belge
-# Lancement : python3 -m streamlit run app/dashboard.py
-# =============================================================================
+"""Blackspots: points noirs du réseau ferroviaire belge.
+Lancement : python3 -m streamlit run app/dashboard.py
+"""
 
 import streamlit as st
 import pandas as pd
@@ -9,10 +8,11 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+
 DATA_URL = "https://raw.githubusercontent.com/Proftg/blackspots-infrabel/main/data/sample.csv"
 
 st.set_page_config(
-    page_title="Blackspots — Réseau Ferroviaire Belge",
+    page_title="Blackspots: Réseau Ferroviaire Belge",
     page_icon="🗺️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -159,7 +159,7 @@ if df_raw is None or df_raw.empty:
     st.stop()
 
 # ---------------------------------------------------------------------------
-# Sidebar — Point 1 : Filtres
+# Sidebar: Point 1 : Filtres
 # ---------------------------------------------------------------------------
 with st.sidebar:
     st.markdown('<div style="color:#64ffda;font-weight:600;margin-bottom:16px;">Filtres</div>', unsafe_allow_html=True)
@@ -186,13 +186,13 @@ if service_sel:
     df = df[df["train_serv"].isin(service_sel)]
 
 # ---------------------------------------------------------------------------
-# Header — Point 5 : date + période
+# Header: Point 5 : date + période
 # ---------------------------------------------------------------------------
 mois_range = f"{mois_dispo[0]} → {mois_dispo[-1]}" if mois_dispo else ""
 st.markdown(f"""
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
     <div>
-        <h1 style="margin:0;color:#e6f1ff;font-size:1.8rem;">🗺️ Blackspots — Points Noirs Ferroviaires</h1>
+        <h1 style="margin:0;color:#e6f1ff;font-size:1.8rem;">Blackspots : points noirs ferroviaires</h1>
         <p style="margin:4px 0 0 0;color:#8892b0;font-size:0.9rem;">
             Cartographie des gares à retards chroniques | Open Data Infrabel | {mois_range}
         </p>
@@ -208,9 +208,9 @@ station_stats = compute_station_stats(df)
 df_filtered = station_stats[station_stats["retard_moyen"] >= seuil_retard]
 
 # ---------------------------------------------------------------------------
-# KPI Cards — Point 2 : ajout "pire mois"
+# KPI Cards: Point 2 : ajout "pire mois"
 # ---------------------------------------------------------------------------
-st.markdown('<div class="section-title">📊 Indicateurs Clés</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Indicateurs clés</div>', unsafe_allow_html=True)
 worst_station = station_stats.iloc[0]["gare"] if not station_stats.empty else "N/A"
 worst_delay = station_stats.iloc[0]["retard_moyen"] if not station_stats.empty else 0
 pct_en_retard = (df["delay_arr"] > 5).mean() * 100
@@ -241,10 +241,10 @@ for col, label, value, sub, cls in [
 # ---------------------------------------------------------------------------
 # Tabs
 # ---------------------------------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Carte", "🏆 Top Gares", "📈 Tendance", "📋 Données"])
+tab1, tab2, tab3, tab4 = st.tabs(["Carte", "Top gares", "Tendance", "Données"])
 
 with tab1:
-    st.markdown('<div class="section-title">Carte des points noirs — Intensité des retards</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Carte des points noirs : intensité des retards</div>', unsafe_allow_html=True)
     df_map = df_filtered.dropna(subset=["lat", "lon"])
     if not df_map.empty:
         fig_map = px.scatter_map(
@@ -261,7 +261,7 @@ with tab1:
             margin={"l": 0, "r": 0, "t": 0, "b": 0}, height=520,
             coloraxis_colorbar=dict(title=dict(text="Retard (min)", font={"color": "#e6f1ff"}), tickfont={"color": "#e6f1ff"}),
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, width="stretch")
         st.caption(f"{len(df_map)} gares affichées | retard moyen >= {seuil_retard} min")
     else:
         st.info("Aucune gare avec coordonnées GPS pour ces filtres.")
@@ -275,23 +275,23 @@ with tab2:
         fig = px.bar(top, x="retard_moyen", y="gare_short", orientation="h",
                      color="retard_moyen", color_continuous_scale="RdYlGn_r", text="retard_moyen",
                      labels={"retard_moyen": "Retard moyen (min)", "gare_short": ""},
-                     title=f"Top {nb_top} — Retard moyen arrivée")
+                     title=f"Top {nb_top}: Retard moyen arrivée")
         fig.update_traces(texttemplate="%{text:.1f}m", textposition="outside")
         fig.update_layout(height=500, coloraxis_showscale=False, **chart_layout_with_yaxis(categoryorder="total ascending"))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     with col_right:
         top2 = station_stats.sort_values("pct_en_retard", ascending=False).head(nb_top).copy()
         top2["gare_short"] = top2["gare"].str[:25]
         fig2 = px.bar(top2, x="pct_en_retard", y="gare_short", orientation="h",
                       color="pct_en_retard", color_continuous_scale="RdYlGn_r", text="pct_en_retard",
                       labels={"pct_en_retard": "% trains en retard >5min", "gare_short": ""},
-                      title=f"Top {nb_top} — % trains en retard >5min")
+                      title=f"Top {nb_top}: % trains en retard >5min")
         fig2.update_traces(texttemplate="%{text:.1f}%", textposition="outside")
         fig2.update_layout(height=500, coloraxis_showscale=False, **chart_layout_with_yaxis(categoryorder="total ascending"))
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
 with tab3:
-    st.markdown('<div class="section-title">Evolution temporelle des retards</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Évolution temporelle des retards</div>', unsafe_allow_html=True)
     if "date" in df.columns:
         df_trend = df.dropna(subset=["date", "delay_arr"]).groupby("date")["delay_arr"].mean().reset_index()
         df_trend.columns = ["date", "retard_moyen"]
@@ -304,7 +304,7 @@ with tab3:
                        annotation_text="Seuil 5 min", annotation_position="top right",
                        annotation_font_color="#64ffda")
         fig3.update_layout(height=380, **chart_layout_with_yaxis())
-        st.plotly_chart(fig3, use_container_width=True)
+        st.plotly_chart(fig3, width="stretch")
 
         if "mois" in df.columns:
             df_mois = df.dropna(subset=["mois", "delay_arr"]).groupby("mois")["delay_arr"].mean().reset_index()
@@ -324,7 +324,7 @@ with tab3:
                        "height": 430, "coloraxis_showscale": False,
                        "xaxis": dict(type="category", tickangle=-45, gridcolor="#2a2a4a", zerolinecolor="#2a2a4a")}
             fig4.update_layout(**layout4)
-            st.plotly_chart(fig4, use_container_width=True)
+            st.plotly_chart(fig4, width="stretch")
     else:
         st.info("Colonne date non disponible.")
 
@@ -332,7 +332,7 @@ with tab4:
     st.markdown('<div class="section-title">Données complètes par gare</div>', unsafe_allow_html=True)
     display = station_stats[["gare", "retard_moyen", "retard_median", "retard_max", "nb_trains", "pct_en_retard"]].copy()
     display.columns = ["Gare", "Retard moy (min)", "Médian", "Max", "Nb trains", "% en retard >5min"]
-    st.dataframe(display, use_container_width=True, height=500)
+    st.dataframe(display, width="stretch", height=500)
     st.caption(f"{len(display)} gares | {len(df):,} trains analysés")
 
 st.markdown(
