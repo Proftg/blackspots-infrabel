@@ -9,3 +9,6 @@ data/clean/
 *.parquet
 venv/
 __pycache__/
+
+# notes personnelles de preparation
+DECISIONS.md
